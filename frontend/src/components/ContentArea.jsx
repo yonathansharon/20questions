@@ -1,121 +1,99 @@
-import CategoryBadge from './CategoryBadge.jsx'
-import DifficultyDots from './DifficultyDots.jsx'
-
 export default function ContentArea({
   gameState, questions, currentIndex,
-  onStart, onReveal, onScore, onNav, quizVersion = 0
+  onStart, onReveal, onScore, onNav, answers = [],
 }) {
   const q = questions[currentIndex]
-  const isFirst = currentIndex === 0
-  const isLast = currentIndex === questions.length - 1
+  const isFirst  = currentIndex === 0
+  const isLast   = currentIndex === questions.length - 1
+  const answered = answers[currentIndex]?.correct !== null && answers[currentIndex]?.correct !== undefined
 
-  // ── START STATE ────────────────────────────────────────────────
+  // ── START ─────────────────────────────────────────────────────────
   if (gameState === 'start') {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-8 py-12">
-        <div className="text-center">
-          {quizVersion > 0 ? (
-            <p className="text-green-600 text-sm font-bold mb-2 bg-green-50 px-3 py-1 rounded-full inline-block">
-              ✓ שאלות ערובבו — סט חדש מוכן!
-            </p>
-          ) : (
-            <p className="text-gray-500 text-lg mb-2 font-medium">סוף שבוע</p>
-          )}
-          <h1 className="text-7xl font-black text-gray-900 leading-none tracking-tight">
+      <div className="flex flex-col h-full" dir="rtl">
+        {/* White upper half */}
+        <div className="flex-1 flex flex-col items-center justify-end pb-10 bg-white">
+          <span className="font-black text-gray-900 leading-none"
+            style={{ fontSize: 'clamp(7rem, 30vw, 11rem)' }}>
             20
-          </h1>
-          <h1 className="text-5xl font-black text-gray-900 leading-none mt-1">
+          </span>
+          <span className="font-black text-gray-900 mt-1"
+            style={{ fontSize: 'clamp(2.5rem, 10vw, 4rem)' }}>
             שאלות
-          </h1>
-          <p className="mt-4 text-gray-500 text-sm max-w-xs text-center leading-relaxed">
-            עשרים שאלות מגוונות על היסטוריה, מדע, תרבות ועוד — בדקו כמה אתם יודעים
-          </p>
+          </span>
         </div>
 
-        <button
-          onClick={onStart}
-          className="px-12 py-4 bg-quiz-yellow text-gray-900 font-black text-2xl rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 active:scale-95 transition-all duration-150"
-        >
-          התחילו!
-        </button>
+        {/* Button straddling the two halves */}
+        <div className="relative z-10 flex justify-center" style={{ height: 0 }}>
+          <button
+            onClick={onStart}
+            className="absolute -translate-y-1/2 w-32 h-32 rounded-full bg-quiz-yellow border-[3px] border-gray-900 font-black text-xl text-gray-900 shadow-xl hover:scale-105 active:scale-95 transition-transform"
+            style={{ fontSize: 'clamp(1.1rem, 4vw, 1.4rem)' }}
+          >
+            התחילו!
+          </button>
+        </div>
 
-        <p className="text-xs text-gray-400">
-          ענו על כל 20 השאלות ובדקו את הציון שלכם
-        </p>
+        {/* Light-blue lower half */}
+        <div className="bg-quiz-blue-bg" style={{ flex: '0 0 42%' }} />
       </div>
     )
   }
 
-  // ── QUESTION & REVEAL STATES ───────────────────────────────────
+  // ── QUESTION / REVEAL ─────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" dir="rtl">
 
-      {/* Top bar: question number + metadata */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <span className="w-10 h-10 rounded-full bg-quiz-yellow text-gray-900 font-black text-lg flex items-center justify-center shadow-sm">
-            {currentIndex + 1}
-          </span>
-          <CategoryBadge category={q.category} />
+      {/* ── Top bar ── */}
+      <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
+        {/* Left: dots progress */}
+        <div className="flex gap-1 flex-wrap max-w-[55%]">
+          {questions.map((_, i) => {
+            const a = answers[i]
+            const isActive = i === currentIndex
+            let bg = 'bg-gray-200'
+            if (a?.correct === true)  bg = 'bg-green-400'
+            if (a?.correct === false) bg = 'bg-red-400'
+            if (isActive && a?.correct == null) bg = 'bg-gray-800'
+            return (
+              <button
+                key={i}
+                onClick={() => onNav(i - currentIndex)}
+                className={`rounded-full transition-all ${bg} ${isActive ? 'w-4 h-4' : 'w-2.5 h-2.5'}`}
+              />
+            )
+          })}
         </div>
-        <DifficultyDots level={q.metadata?.difficulty ?? q.difficulty ?? 3} />
+        {/* Right: counter */}
+        <span className="text-[#1B5DBB] font-bold text-lg tabular-nums">
+          {currentIndex + 1}/{questions.length}
+        </span>
       </div>
 
-      {/* Question text */}
-      <div className="flex-1 flex flex-col justify-center">
-        <p className="text-2xl font-bold text-gray-900 leading-relaxed mb-8">
+      {/* ── Question area ── */}
+      <div className="flex-1 flex flex-col justify-center px-6 pb-4">
+        {/* Category (small) */}
+        {q.category && (
+          <p className="text-center text-xs text-gray-400 font-medium mb-4 uppercase tracking-wider">
+            {q.category}
+          </p>
+        )}
+
+        {/* Question text — large, centered */}
+        <p
+          className="text-center font-bold text-gray-900 leading-relaxed"
+          style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)' }}
+        >
           {q.question_text}
         </p>
 
-        {/* Answer reveal */}
-        {gameState === 'reveal' && (
-          <div className="mb-8 p-5 bg-white rounded-2xl border-2 border-blue-300 shadow-sm">
-            <p className="text-xs text-blue-500 font-semibold uppercase tracking-widest mb-2">
-              תשובה
-            </p>
-            <p className="text-xl font-bold text-blue-700">
-              {q.correct_answer}
-            </p>
-            {q.metadata?.source_url && (
-              <a
-                href={q.metadata.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 text-xs text-gray-400 hover:text-blue-500 underline break-all block"
-              >
-                מקור: ויקיפדיה
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* Self-scoring buttons */}
-        {gameState === 'reveal' && (
-          <div className="flex flex-col items-center gap-3">
-            <p className="text-base font-semibold text-gray-600">האם צדקת?</p>
-            <div className="flex gap-4">
-              <button
-                onClick={() => onScore(true)}
-                className="w-16 h-16 rounded-full bg-green-500 text-white text-2xl font-black shadow-md hover:bg-green-600 hover:scale-105 active:scale-95 transition-all duration-150"
-              >
-                ✓
-              </button>
-              <button
-                onClick={() => onScore(false)}
-                className="w-16 h-16 rounded-full bg-gray-400 text-white text-2xl font-black shadow-md hover:bg-red-400 hover:scale-105 active:scale-95 transition-all duration-150"
-              >
-                ✗
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Reveal button */}
+        {/* Reveal button (question state only) */}
         {gameState === 'question' && (
-          <div className="flex justify-center">
+          <div className="flex justify-center mt-8">
             <button
               onClick={onReveal}
-              className="px-10 py-3 border-2 border-gray-800 text-gray-800 font-bold text-lg rounded-full hover:bg-gray-800 hover:text-white active:scale-95 transition-all duration-150"
+              className="px-8 py-2.5 border-2 border-gray-800 text-gray-900 font-bold rounded-full hover:bg-gray-900 hover:text-white active:scale-95 transition-all"
+              style={{ fontSize: 'clamp(0.95rem, 3vw, 1.1rem)' }}
             >
               תשובה
             </button>
@@ -123,26 +101,75 @@ export default function ContentArea({
         )}
       </div>
 
-      {/* Navigation: Prev / Next */}
-      <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-        <button
-          onClick={() => onNav(-1)}
-          disabled={isFirst}
-          className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          ← הקודמת
-        </button>
-        <span className="text-xs text-gray-400">
-          {currentIndex + 1} / {questions.length}
-        </span>
-        <button
-          onClick={() => onNav(1)}
-          disabled={isLast}
-          className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          הבאה →
-        </button>
-      </div>
+      {/* ── Bottom: nav arrows when still in question state ── */}
+      {gameState === 'question' && (
+        <div className="flex justify-between px-6 pb-6 shrink-0">
+          <NavArrow onClick={() => onNav(-1)} disabled={isFirst}  dir="right" />
+          <NavArrow onClick={() => onNav(1)}  disabled={isLast}   dir="left"  />
+        </div>
+      )}
+
+      {/* ── Blue reveal panel ── */}
+      {gameState === 'reveal' && (
+        <div className="shrink-0 bg-[#1B5DBB] rounded-t-3xl px-6 pt-6 pb-4">
+
+          {/* Answer */}
+          <p className="text-center text-white font-bold mb-1"
+            style={{ fontSize: 'clamp(1.2rem, 4.5vw, 1.6rem)' }}>
+            {q.correct_answer}
+          </p>
+
+          {/* Explanation (if any) */}
+          {q.explanation && (
+            <p className="text-center text-blue-200 text-xs leading-relaxed mb-3 max-w-sm mx-auto">
+              {q.explanation}
+            </p>
+          )}
+
+          {/* Score prompt */}
+          {!answered && (
+            <>
+              <p className="text-center text-blue-200 text-sm mt-3 mb-3">האם צדקת?</p>
+              <div className="flex justify-center gap-5 mb-4">
+                <ScoreBtn type="wrong" onClick={() => onScore(false)} />
+                <ScoreBtn type="right" onClick={() => onScore(true)}  />
+              </div>
+            </>
+          )}
+
+          {/* Nav arrows (inside blue panel) */}
+          <div className="flex justify-between items-center pt-2">
+            <NavArrow onClick={() => onNav(-1)} disabled={isFirst} dir="right" />
+            <NavArrow onClick={() => onNav(1)}  disabled={isLast}  dir="left"  />
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+// ── Yellow circle nav arrow ─────────────────────────────────────────
+function NavArrow({ onClick, disabled, dir }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-12 h-12 rounded-full bg-quiz-yellow border-2 border-gray-900 font-black text-gray-900 text-xl flex items-center justify-center disabled:opacity-25 active:scale-95 transition-all shadow-sm"
+    >
+      {dir === 'right' ? '‹' : '›'}
+    </button>
+  )
+}
+
+// ── Score button (wrong / right) ────────────────────────────────────
+function ScoreBtn({ type, onClick }) {
+  const isRight = type === 'right'
+  return (
+    <button
+      onClick={onClick}
+      className="w-14 h-14 rounded-full border-2 border-white text-white text-2xl flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all font-bold"
+    >
+      {isRight ? '✓' : '✕'}
+    </button>
   )
 }
