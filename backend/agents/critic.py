@@ -1,7 +1,10 @@
 """Agent C — Self-reflection evaluator: scores, zero-shot tests, and verdicts questions."""
 import json
+import os
 import re
-import anthropic
+import google.generativeai as genai
+
+genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", ""))
 
 
 def _extract_json(text: str) -> dict:
@@ -11,7 +14,6 @@ def _extract_json(text: str) -> dict:
         return json.loads(match.group(0))
     return json.loads(text)
 
-_client = anthropic.Anthropic()
 
 EVAL_SYSTEM = """\
 You are a ruthless quality gatekeeper for a premium trivia database.
@@ -63,13 +65,12 @@ def evaluate_question(question: dict) -> dict:
         f"Explanation:    {question.get('explanation', '')}"
     )
     try:
-        msg = _client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=600,
-            system=EVAL_SYSTEM,
-            messages=[{"role": "user", "content": prompt}],
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=EVAL_SYSTEM,
         )
-        result = _extract_json(msg.content[0].text)
+        response = model.generate_content(prompt)
+        result = _extract_json(response.text)
         # Enforce verdict based solely on composite_score (ignore self_answered_correctly)
         result["verdict"] = "ACCEPT" if result.get("composite_score", 0) >= 6.0 else "REJECT"
         return result

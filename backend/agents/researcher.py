@@ -1,7 +1,10 @@
 """Agent A — Extracts obscure facts via a single direct API call (no tool loop)."""
 import json
+import os
 import re
-import anthropic
+import google.generativeai as genai
+
+genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", ""))
 
 
 def _extract_json_list(text: str) -> list:
@@ -12,8 +15,6 @@ def _extract_json_list(text: str) -> list:
         return json.loads(match.group(0))
     return json.loads(text)
 
-
-_client = anthropic.Anthropic()
 
 SYSTEM_PROMPT = """\
 You are a research analyst for a premium Israeli newspaper's weekend trivia section ("20 שאלות" style — Haaretz quality).
@@ -74,27 +75,22 @@ def extract_research_items(
         system += f"\n\nSKILL FOCUS (override all generic guidance above):\n{skill_hint}"
 
     try:
-        response = _client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2000,
-            system=system,
-            messages=[
-                {"role": "user", "content": f"Source title: {source_title}\n\n{text[:7000]}"}
-            ],
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=system,
         )
+        user_msg = f"Source title: {source_title}\n\n{text[:7000]}"
+        response = model.generate_content(user_msg)
 
-        print(f"[researcher] stop_reason={response.stop_reason}", flush=True)
-
-        for block in response.content:
-            if block.type == "text":
-                print(f"[researcher] text (first 300): {block.text[:300]}", flush=True)
-                try:
-                    items = _extract_json_list(block.text)
-                    filtered = [i for i in items if isinstance(i, dict) and i.get("obscurity_score", 0) >= 3]
-                    print(f"[researcher] extracted {len(items)} items, {len(filtered)} passed filter", flush=True)
-                    return filtered
-                except Exception as e:
-                    print(f"[researcher] JSON parse error: {e}", flush=True)
+        raw = response.text
+        print(f"[researcher] text (first 300): {raw[:300]}", flush=True)
+        try:
+            items = _extract_json_list(raw)
+            filtered = [i for i in items if isinstance(i, dict) and i.get("obscurity_score", 0) >= 3]
+            print(f"[researcher] extracted {len(items)} items, {len(filtered)} passed filter", flush=True)
+            return filtered
+        except Exception as e:
+            print(f"[researcher] JSON parse error: {e}", flush=True)
 
     except Exception as e:
         print(f"[researcher] error: {e}", flush=True)

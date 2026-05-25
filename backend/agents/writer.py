@@ -1,13 +1,14 @@
 import json
 import os
 import re
-from anthropic import Anthropic
+import google.generativeai as genai
+
+genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", ""))
 
 
 def _extract_json(text: str) -> dict:
     """Parse JSON from model output, stripping markdown code fences if present."""
     text = text.strip()
-    # Remove ```json ... ``` or ``` ... ``` wrappers
     match = re.search(r'\{.*\}', text, re.DOTALL)
     if match:
         return json.loads(match.group(0))
@@ -19,12 +20,6 @@ def execute_writer_agent(fact_context: str, topic_hint: str | None = None) -> di
     Agent B (The Writer): Takes a raw historical fact and turns it into a clever,
     indirect trivia question in the style of Haaretz's "20 Questions".
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY is missing from environment variables.")
-
-    client = Anthropic(api_key=api_key)
-
     category_rule = (
         f'5. The "category" field MUST be exactly: "{topic_hint}".'
         if topic_hint
@@ -43,16 +38,14 @@ def execute_writer_agent(fact_context: str, topic_hint: str | None = None) -> di
     """
 
     try:
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1000,
-            system=system_prompt,
-            messages=[
-                {"role": "user", "content": f"Create a Haaretz-style trivia question based on this fact:\n\n{fact_context}"}
-            ]
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=system_prompt,
         )
+        user_msg = f"Create a Haaretz-style trivia question based on this fact:\n\n{fact_context}"
+        response = model.generate_content(user_msg)
 
-        raw = response.content[0].text
+        raw = response.text
         print(f"[writer] raw response (first 300): {raw[:300]}", flush=True)
         return _extract_json(raw)
 
@@ -87,13 +80,8 @@ def refine_question(question: dict, action: str) -> dict | None:
     'improve' | 'deepen' | 'simplify'
     Returns updated question dict or None on failure.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY is missing from environment variables.")
-
     instruction = _REFINE_INSTRUCTIONS.get(action, _REFINE_INSTRUCTIONS["improve"])
 
-    client = Anthropic(api_key=api_key)
     system_prompt = f"""You are an elite puzzle editor for Haaretz newspaper's weekend trivia section.
     You will receive an existing trivia question and must refine it according to the given instruction.
 
@@ -116,13 +104,12 @@ Existing question:
 Rewrite it now."""
 
     try:
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=500,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_msg}]
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=system_prompt,
         )
-        raw = response.content[0].text
+        response = model.generate_content(user_msg)
+        raw = response.text
         print(f"[writer/refine] raw (first 300): {raw[:300]}", flush=True)
         result = _extract_json(raw)
 
