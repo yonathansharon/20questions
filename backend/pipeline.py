@@ -1,8 +1,12 @@
 """Orchestrates the A → B → C multi-agent pipeline for a single document."""
+import time
 import uuid
 from agents.researcher import extract_research_items
 from agents.writer import write_question
 from agents.critic import evaluate_question
+
+# Gemini free tier: 15 requests/minute → wait ~4s between calls
+_API_DELAY = 4.0
 
 MAX_RETRIES = 3
 
@@ -40,6 +44,8 @@ def run_pipeline(document: dict, skill: dict | None = None, topic: str | None = 
         meta["rejections"].append("Agent A: no quality research items extracted")
         return None, meta
 
+    time.sleep(_API_DELAY)  # rate-limit guard
+
     # ── Agent B + C loop ─────────────────────────────────────────
     for attempt in range(1, MAX_RETRIES + 1):
         meta["attempts"] = attempt
@@ -48,6 +54,8 @@ def run_pipeline(document: dict, skill: dict | None = None, topic: str | None = 
         if not question:
             meta["rejections"].append(f"Attempt {attempt}: Agent B returned nothing")
             continue
+
+        time.sleep(_API_DELAY)  # rate-limit guard
 
         eval_result = evaluate_question(question)
         meta["final_eval"] = eval_result
