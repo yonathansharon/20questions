@@ -10,7 +10,7 @@ from ingestion.rss_fetcher import fetch_rss
 from pipeline import run_pipeline
 
 
-def _chunk_text(text: str, max_chars: int = 3000, max_chunks: int = 5) -> list[str]:
+def _chunk_text(text: str, max_chars: int = 4000, max_chunks: int = 2) -> list[str]:
     """Split raw text into paragraph-aware chunks for pipeline ingestion."""
     paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
     chunks, current, current_len = [], [], 0

@@ -8,7 +8,7 @@ from agents.critic import evaluate_question
 # Gemini free tier: 15 requests/minute → wait ~4s between calls
 _API_DELAY = 4.0
 
-MAX_RETRIES = 3
+MAX_RETRIES = 1
 
 
 def run_pipeline(document: dict, skill: dict | None = None, topic: str | None = None) -> tuple[dict | None, dict]:
